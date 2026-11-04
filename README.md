@@ -1,61 +1,59 @@
 # MagicSwitchbot (Bluetooth Proxy)
 
-Integracja Home Assistant dla **Magic Switchbot** — sterowanie przez BLE
-(lokalny adapter albo ESPHome Bluetooth proxy). Encje `switch`, `button`,
-sensor baterii i opcjonalnie RSSI.
+A Home Assistant integration for **Magic Switchbot**, controlled over BLE
+using a local Bluetooth adapter or an ESPHome Bluetooth proxy. It provides
+`switch` and `button` entities, a battery sensor, and an optional RSSI sensor.
 
 <img src="https://raw.githubusercontent.com/mnowok/magicswitchbot_ble/main/docs/screenshot.png"
-     alt="Strona urządzenia Magic Switchbot w Home Assistant" width="700">
+     alt="Magic Switchbot device page in Home Assistant" width="700">
 
-## Wymagania
+## Requirements
 
-- Home Assistant 2026.3 lub nowszy
-- **Connectable** Bluetooth — lokalny adapter BLE albo ESPHome Bluetooth proxy
-- Urządzenie Magic Switchbot w zasięgu
+- Home Assistant 2026.3 or later
+- **Connectable** Bluetooth, provided by a local BLE adapter or an ESPHome Bluetooth proxy
+- A Magic Switchbot device within Bluetooth range
 
-## Instalacja (HACS)
+## Installation via HACS
 
-1. HACS → **Integracje** → ⋮ → **Custom repositories**
-2. URL: `https://github.com/mnowok/magicswitchbot_ble`, kategoria **Integration**
-3. Znajdź **MagicSwitchbot (Bluetooth Proxy)** → **Download**
-4. **Zrestartuj Home Assistant**
-5. Ustawienia → Urządzenia i usługi → **Dodaj integrację** → **MagicSwitchbot**
+1. In HACS, open **Integrations** and select **⋮ → Custom repositories**.
+2. Enter `https://github.com/mnowok/magicswitchbot_ble` and select **Integration** as the category.
+3. Find **MagicSwitchbot (Bluetooth Proxy)** and select **Download**.
+4. **Restart Home Assistant.**
+5. Go to **Settings → Devices & services → Add integration** and select **MagicSwitchbot**.
 
-## Konfiguracja
+## Configuration
 
-Urządzenie jest wykrywane automatycznie (matcher po nazwie `MagicSwitchBot*`
-i `manufacturer_id 1282`). Jeśli się nie pojawi — np. gdy bot jest w głębokim
-śnie i nie reklamuje się — wybierz **Enter MAC address manually** i wpisz adres
-w formacie `AA:BB:CC:DD:EE:FF`.
+The integration discovers devices automatically by their `MagicSwitchBot*`
+advertised name and manufacturer ID `1282`.
 
-## Opcje
+If your device does not appear—for example, because it is asleep and not
+advertising—choose the manual MAC address option in the setup flow. Enter the
+address in this format: `AA:BB:CC:DD:EE:FF`.
 
-| Opcja | Domyślnie | Opis |
-|---|---|---|
-| `enable_switch` | `true` | encja `switch` |
-| `enable_button` | `true` | encja `button` |
-| `enable_battery` | `true` | sensor poziomu baterii |
-| `enable_rssi` | `false` | sensor RSSI |
-| `retry_count` | `3` | liczba ponowień komendy |
-| `command_timeout` | `30` | timeout komendy w sekundach |
+## Options
 
-## Rozwiązywanie problemów
+| Option | Default | Description |
+|---|---:|---|
+| `enable_switch` | `true` | Create a switch entity |
+| `enable_button` | `true` | Create a button entity |
+| `enable_battery` | `true` | Create a battery sensor |
+| `enable_rssi` | `false` | Create an RSSI sensor |
+| `retry_count` | `3` | Number of command retries |
+| `command_timeout` | `30` | Command timeout in seconds |
 
-- **Brak urządzenia na liście** → użyj trybu ręcznego; urządzenie śpiące nie
-  reklamuje się w BLE.
-- **Bateria się nie odświeża** → wartość pochodzi z reklamy BLE, więc zmienia
-  się dopiero przy kolejnym rozgłoszeniu urządzenia.
-- **Komendy nie docierają** → sprawdź, czy proxy BLE jest w trybie
-  *connectable* i w zasięgu.
+## Troubleshooting
 
-## Licencja
+- **The device does not appear in the list:** Try manual setup. A sleeping device may not be advertising over BLE.
+- **The battery level does not update:** The value comes from BLE advertisements, so it updates when the device advertises again.
+- **Commands do not reach the device:** Check that the Bluetooth proxy is connectable and within range.
 
-MIT. Projekt niezwiązany z Shenzhen Interear ani z SwitchBot.
+To enable debug logging:
 
-Logi diagnostyczne:
+    logger:
+      default: warning
+      logs:
+        custom_components.magicswitchbot_ble: debug
 
-```yaml
-logger:
-  default: warning
-  logs:
-    custom_components.magicswitchbot_ble: debug
+## License
+
+MIT. This project is not affiliated with Shenzhen Interear or SwitchBot.
