@@ -1,0 +1,85 @@
+{
+  "config": {
+    "flow_title": "{name} ({address})",
+    "step": {
+      "user": {
+        "title": "Dodaj Magic Switchbot",
+        "description": "Jak chcesz dodać urządzenie?",
+        "menu_options": {
+          "pick_device": "Wybierz wykryte urządzenie",
+          "manual": "Wpisz adres MAC ręcznie"
+        }
+      },
+      "pick_device": {
+        "title": "Wybierz Magic Switchbot",
+        "description": "Wykryto {count} urządzenie/urządzeń przez Bluetooth (także przez proxy ESPHome).",
+        "data": {
+          "address": "Urządzenie",
+          "name": "Nazwa"
+        }
+      },
+      "manual": {
+        "title": "Podaj adres MAC",
+        "description": "Wpisz adres MAC urządzenia, np. AA:BB:CC:DD:EE:FF.",
+        "data": {
+          "address": "Adres MAC",
+          "name": "Nazwa"
+        }
+      },
+      "bluetooth_confirm": {
+        "title": "Wykryto Magic Switchbot",
+        "description": "Czy dodać **{name}** ({address})?",
+        "data": {
+          "name": "Nazwa"
+        }
+      }
+    },
+    "error": {
+      "invalid_mac": "Nieprawidłowy adres MAC (oczekiwany format AA:BB:CC:DD:EE:FF)."
+    },
+    "abort": {
+      "already_configured": "Ten Magic Switchbot jest już skonfigurowany.",
+      "no_devices_found": "Nie wykryto żadnego urządzenia Magic Switchbot."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opcje Magic Switchbot",
+        "description": "Wybierz, które encje mają powstać, oraz parametry BLE.",
+        "data": {
+          "enable_switch": "Encja przełącznika (tryb ON/OFF)",
+          "enable_button": "Encja przycisku (tryb PUSH)",
+          "enable_battery": "Czujnik baterii",
+          "enable_rssi": "Czujnik siły sygnału",
+          "retry_count": "Liczba ponowień BLE",
+          "command_timeout": "Limit czasu komendy"
+        },
+        "data_description": {
+          "retry_count": "Ile razy ponowić komendę, gdy urządzenie nie odpowie (0-10).",
+          "command_timeout": "Maksymalny czas oczekiwania na wykonanie komendy w sekundach (10-120)."
+        }
+      }
+    }
+  },
+  "entity": {
+    "button": {
+      "push": { "name": "Naciśnij" }
+    },
+    "sensor": {
+      "battery": { "name": "Bateria" },
+      "rssi": { "name": "Siła sygnału" }
+    }
+  },
+  "exceptions": {
+    "communication_error": {
+      "message": "Błąd komunikacji z {address}: {error}"
+    },
+    "command_failed": {
+      "message": "Urządzenie {address} nie potwierdziło komendy."
+    },
+    "device_not_found": {
+      "message": "{address} jest nieosiągalny przez stos Bluetooth. Sprawdź, czy proxy ESPHome jest w zasięgu i czy urządzenie ma baterię."
+    }
+  }
+}

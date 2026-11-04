@@ -1,0 +1,85 @@
+{
+  "config": {
+    "flow_title": "{name} ({address})",
+    "step": {
+      "user": {
+        "title": "Add Magic Switchbot",
+        "description": "How do you want to add your device?",
+        "menu_options": {
+          "pick_device": "Pick a discovered device",
+          "manual": "Enter the MAC address manually"
+        }
+      },
+      "pick_device": {
+        "title": "Pick a Magic Switchbot",
+        "description": "{count} device(s) discovered via Bluetooth (including ESPHome proxies).",
+        "data": {
+          "address": "Device",
+          "name": "Name"
+        }
+      },
+      "manual": {
+        "title": "Enter the MAC address",
+        "description": "Type the Bluetooth MAC address of the device, e.g. AA:BB:CC:DD:EE:FF.",
+        "data": {
+          "address": "MAC address",
+          "name": "Name"
+        }
+      },
+      "bluetooth_confirm": {
+        "title": "Magic Switchbot discovered",
+        "description": "Do you want to add **{name}** ({address})?",
+        "data": {
+          "name": "Name"
+        }
+      }
+    },
+    "error": {
+      "invalid_mac": "Invalid MAC address (expected AA:BB:CC:DD:EE:FF)."
+    },
+    "abort": {
+      "already_configured": "This Magic Switchbot is already configured.",
+      "no_devices_found": "No Magic Switchbot devices were discovered."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Magic Switchbot options",
+        "description": "Choose which entities to create and the BLE parameters.",
+        "data": {
+          "enable_switch": "Switch entity (ON/OFF mode)",
+          "enable_button": "Button entity (PUSH mode)",
+          "enable_battery": "Battery sensor",
+          "enable_rssi": "Signal strength sensor",
+          "retry_count": "BLE retries",
+          "command_timeout": "Command timeout"
+        },
+        "data_description": {
+          "retry_count": "How many times a command is retried when the device does not answer (0-10).",
+          "command_timeout": "Maximum time to wait for the device to execute a command, in seconds (10-120)."
+        }
+      }
+    }
+  },
+  "entity": {
+    "button": {
+      "push": { "name": "Push" }
+    },
+    "sensor": {
+      "battery": { "name": "Battery" },
+      "rssi": { "name": "Signal strength" }
+    }
+  },
+  "exceptions": {
+    "communication_error": {
+      "message": "Communication with {address} failed: {error}"
+    },
+    "command_failed": {
+      "message": "The device {address} did not confirm the command."
+    },
+    "device_not_found": {
+      "message": "{address} is not reachable through the Bluetooth stack. Check that an ESPHome Bluetooth proxy is in range and that the device is powered."
+    }
+  }
+}

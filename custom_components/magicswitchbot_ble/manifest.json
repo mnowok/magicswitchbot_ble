@@ -1,0 +1,20 @@
+{
+  "domain": "magicswitchbot_ble",
+  "name": "MagicSwitchbot (Bluetooth Proxy)",
+  "version": "3.0.0",
+  "config_flow": true,
+  "integration_type": "device",
+  "requirements": ["pyMagicSwitchbot==1.1.4"],
+  "dependencies": ["bluetooth"],
+  "bluetooth": [
+    {
+      "local_name": "MagicSwitchBot*",
+      "manufacturer_id": 1282
+    }
+  ],
+  "documentation": "https://github.com/mnowok/magicswitchbot_ble",
+  "issue_tracker": "https://github.com/mnowok/magicswitchbot_ble/issues",
+  "codeowners": ["@mnowok"],
+  "iot_class": "local_push",
+  "loggers": ["magicswitchbot"]
+}
