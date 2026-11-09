@@ -13,7 +13,7 @@ from homeassistant.components.bluetooth import (
     async_register_callback,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_ADDRESS
+from homeassistant.const import CONF_ADDRESS, Platform
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import CONNECTION_BLUETOOTH, DeviceInfo
@@ -39,6 +39,11 @@ class MagicSwitchbotRuntime:
         """Inicjalizacja."""
         self.hass = hass
         self.entry = entry
+
+        # Platformy uruchomione dla tej konkretnej instancji runtime.
+        # Lista jest ustawiana przez async_setup_entry().
+        self.forwarded_platforms: list[Platform] = []
+
         options = {**DEFAULT_OPTIONS, **entry.options}
 
         self.address: str = str(entry.data[CONF_ADDRESS]).upper()
@@ -75,7 +80,10 @@ class MagicSwitchbotRuntime:
 
     # ---- Listenery encji ------------------------------------------------
     @callback
-    def async_add_listener(self, update_callback: Callable[[], None]) -> Callable[[], None]:
+    def async_add_listener(
+        self,
+        update_callback: Callable[[], None],
+    ) -> Callable[[], None]:
         """Rejestruje encję jako słuchacza zmian stanu."""
         self._listeners.append(update_callback)
 
@@ -115,12 +123,15 @@ class MagicSwitchbotRuntime:
         if self._unsub_adv is not None:
             self._unsub_adv()
             self._unsub_adv = None
+
         self._listeners.clear()
 
     # ---- Reklamy BLE ----------------------------------------------------
     @callback
     def _async_on_advertisement(
-        self, service_info: BluetoothServiceInfoBleak, change: BluetoothChange
+        self,
+        service_info: BluetoothServiceInfoBleak,
+        change: BluetoothChange,
     ) -> None:
         """Aktualizuje baterię i RSSI z reklamy (bez otwierania połączenia)."""
         changed = False
@@ -155,6 +166,7 @@ class MagicSwitchbotRuntime:
 
         if (battery := info.get("battery")) is not None:
             self.battery = battery
+
         self.firmware = info.get("firmware") or self.firmware
         self.chip_type = info.get("chip_type") or self.chip_type
 
@@ -176,9 +188,12 @@ class MagicSwitchbotRuntime:
     def _async_update_device_registry(self) -> None:
         """Uzupełnia firmware/chip w rejestrze urządzeń."""
         registry = dr.async_get(self.hass)
-        device = registry.async_get_device(identifiers={(DOMAIN, self.unique_id)})
+        device = registry.async_get_device(
+            identifiers={(DOMAIN, self.unique_id)}
+        )
         if device is None:
             return
+
         registry.async_update_device(
             device.id,
             sw_version=self.firmware,
@@ -187,7 +202,8 @@ class MagicSwitchbotRuntime:
 
     @callback
     def async_password_enabled_from_adv(
-        self, manufacturer_data: dict[int, bytes]
+        self,
+        manufacturer_data: dict[int, bytes],
     ) -> bool | None:
         """Pomocniczo: informacja o PIN-ie z samej reklamy."""
         return parse_password_enabled(manufacturer_data)

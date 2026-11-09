@@ -2,7 +2,10 @@
   "domain": "magicswitchbot_ble",
   "name": "MagicSwitchbot (Bluetooth Proxy)",
   "bluetooth": [
-    { "local_name": "MagicSwitchBot*", "manufacturer_id": 1282 }
+    {
+      "local_name": "MagicSwitchBot*",
+      "manufacturer_id": 1282
+    }
   ],
   "categories": ["plugs_switches", "buttons_remotes"],
   "codeowners": ["@mnowok"],
@@ -14,5 +17,5 @@
   "issue_tracker": "https://github.com/mnowok/magicswitchbot_ble/issues",
   "loggers": ["magicswitchbot"],
   "requirements": ["pyMagicSwitchbot==1.1.4"],
-  "version": "3.0.1"
+  "version": "3.0.2"
 }
