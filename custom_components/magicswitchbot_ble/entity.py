@@ -25,6 +25,11 @@ class MagicSwitchbotEntity(Entity):
         """Device info - dzięki temu wszystkie encje są pod jednym urządzeniem."""
         return self._runtime.device_info
 
+    @property
+    def available(self) -> bool:
+        """Encja niedostępna, gdy stos Bluetooth nie widzi bota."""
+        return self._runtime.available
+
     async def async_added_to_hass(self) -> None:
         """Subskrybuje zmiany stanu runtime."""
         self.async_on_remove(

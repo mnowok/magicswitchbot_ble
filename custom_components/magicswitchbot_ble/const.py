@@ -17,7 +17,13 @@ CONF_RETRY_COUNT: Final = "retry_count"
 CONF_COMMAND_TIMEOUT: Final = "command_timeout"
 
 DEFAULT_RETRY_COUNT: Final = 3
-DEFAULT_COMMAND_TIMEOUT: Final = 30
+# Łączny limit z ponowieniami. Jedna próba połączenia przez bleak_retry_connector
+# trwa do 20 s, więc 60 s mieści co najmniej 2-3 próby połączenia.
+DEFAULT_COMMAND_TIMEOUT: Final = 60
+# Minimum mieści jedną pełną próbę: połączenie (do 20 s), token, komendę
+# i ruch ramienia (2,25 s). Krótszy limit przerwałby nawet udaną próbę.
+MIN_COMMAND_TIMEOUT: Final = 30
+MAX_COMMAND_TIMEOUT: Final = 120
 
 DEFAULT_OPTIONS: Final[dict[str, Any]] = {
     CONF_ENABLE_SWITCH: True,

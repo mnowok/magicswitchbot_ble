@@ -10,21 +10,24 @@ from homeassistant.components.bluetooth import (
     BluetoothChange,
     BluetoothScanningMode,
     BluetoothServiceInfoBleak,
+    async_address_present,
     async_register_callback,
+    async_track_unavailable,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_ADDRESS, Platform
+from homeassistant.const import CONF_ADDRESS, CONF_PASSWORD, Platform
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import CONNECTION_BLUETOOTH, DeviceInfo
 
-from .api import MagicSwitchbotBLE, MagicSwitchbotError
+from .api import MagicSwitchbotAuthError, MagicSwitchbotBLE, MagicSwitchbotError
 from .const import (
     CONF_COMMAND_TIMEOUT,
     CONF_RETRY_COUNT,
     DEFAULT_OPTIONS,
     DOMAIN,
     MANUFACTURER,
+    MIN_COMMAND_TIMEOUT,
     MODEL,
 )
 from .util import normalize_mac, parse_battery, parse_password_enabled
@@ -51,8 +54,13 @@ class MagicSwitchbotRuntime:
         self.api = MagicSwitchbotBLE(
             hass,
             self.address,
+            password=entry.data.get(CONF_PASSWORD) or None,
             retry_count=int(options[CONF_RETRY_COUNT]),
-            command_timeout=int(options[CONF_COMMAND_TIMEOUT]),
+            # Wartość zapisana przy starym minimum (10 s) przerwałaby nawet
+            # udaną próbę połączenia, więc podnosimy ją do obecnego minimum.
+            command_timeout=max(
+                int(options[CONF_COMMAND_TIMEOUT]), MIN_COMMAND_TIMEOUT
+            ),
         )
 
         self.battery: int | None = None
@@ -61,8 +69,15 @@ class MagicSwitchbotRuntime:
         self.chip_type: str | None = None
         self.password_enabled: bool | None = None
 
+        # Dostępność = czy stos Bluetooth HA widzi bota jako connectable.
+        # Gdy go nie widzi, komendy i tak kończyłyby się błędem "not found".
+        self.available: bool = async_address_present(
+            hass, self.address, connectable=True
+        )
+
         self._listeners: list[Callable[[], None]] = []
         self._unsub_adv: Callable[[], None] | None = None
+        self._unsub_unavailable: Callable[[], None] | None = None
 
     # ---- Device registry ------------------------------------------------
     @property
@@ -110,6 +125,12 @@ class MagicSwitchbotRuntime:
             BluetoothCallbackMatcher(address=self.address),
             BluetoothScanningMode.PASSIVE,
         )
+        self._unsub_unavailable = async_track_unavailable(
+            self.hass,
+            self._async_on_unavailable,
+            self.address,
+            connectable=True,
+        )
         self.entry.async_create_background_task(
             self.hass,
             self._async_fetch_info(),
@@ -124,7 +145,23 @@ class MagicSwitchbotRuntime:
             self._unsub_adv()
             self._unsub_adv = None
 
+        if self._unsub_unavailable is not None:
+            self._unsub_unavailable()
+            self._unsub_unavailable = None
+
         self._listeners.clear()
+
+    # ---- Hasło (PIN) ----------------------------------------------------
+    @callback
+    def async_handle_auth_failed(self) -> None:
+        """Urządzenie odrzuciło hasło: poproś użytkownika o nowe (reauth)."""
+        _LOGGER.warning(
+            "MagicSwitchbot[%s]: urządzenie odrzuciło hasło (PIN), "
+            "potrzebne ponowne uwierzytelnienie",
+            self.address,
+        )
+        # HA nie uruchamia drugiego flow, jeśli reauth już trwa.
+        self.entry.async_start_reauth(self.hass)
 
     # ---- Reklamy BLE ----------------------------------------------------
     @callback
@@ -135,6 +172,11 @@ class MagicSwitchbotRuntime:
     ) -> None:
         """Aktualizuje baterię i RSSI z reklamy (bez otwierania połączenia)."""
         changed = False
+
+        if not self.available:
+            _LOGGER.debug("MagicSwitchbot[%s]: urządzenie znów dostępne", self.address)
+            self.available = True
+            changed = True
 
         if (battery := parse_battery(service_info.manufacturer_data)) is not None:
             if battery != self.battery:
@@ -148,11 +190,24 @@ class MagicSwitchbotRuntime:
         if changed:
             self.async_update_listeners()
 
+    @callback
+    def _async_on_unavailable(self, service_info: BluetoothServiceInfoBleak) -> None:
+        """Stos Bluetooth przestał widzieć bota (poza zasięgiem / brak baterii)."""
+        if not self.available:
+            return
+
+        _LOGGER.debug("MagicSwitchbot[%s]: urządzenie niedostępne", self.address)
+        self.available = False
+        self.async_update_listeners()
+
     # ---- Jednorazowy odczyt przez GATT ----------------------------------
     async def _async_fetch_info(self) -> None:
         """Pobiera firmware/chip/PIN i baterię z GATT (jeśli bot jest w zasięgu)."""
         try:
             info = await self.api.get_basic_info()
+        except MagicSwitchbotAuthError:
+            self.async_handle_auth_failed()
+            return
         except MagicSwitchbotError as err:
             _LOGGER.debug(
                 "MagicSwitchbot[%s]: nie udało się odczytać informacji: %s",
@@ -170,16 +225,11 @@ class MagicSwitchbotRuntime:
         self.firmware = info.get("firmware") or self.firmware
         self.chip_type = info.get("chip_type") or self.chip_type
 
+        # Po pobraniu tokenu biblioteka zwraca tu napis "True"/"False",
+        # a bool("False") dałoby True.
         password_enabled = info.get("password_enabled")
         if password_enabled is not None:
-            self.password_enabled = bool(password_enabled)
-
-        if self.password_enabled:
-            _LOGGER.warning(
-                "MagicSwitchbot[%s]: urządzenie ma włączony PIN. Ta integracja "
-                "wysyła komendy bez PIN-u, więc komendy mogą być odrzucane.",
-                self.address,
-            )
+            self.password_enabled = str(password_enabled).lower() == "true"
 
         self._async_update_device_registry()
         self.async_update_listeners()
@@ -188,8 +238,8 @@ class MagicSwitchbotRuntime:
     def _async_update_device_registry(self) -> None:
         """Uzupełnia firmware/chip w rejestrze urządzeń."""
         registry = dr.async_get(self.hass)
-        device = registry.async_get_device(
-            identifiers={(DOMAIN, self.unique_id)}
+        device = registry.async_get_device_by_identifier(
+            (DOMAIN, self.unique_id), self.entry.entry_id
         )
         if device is None:
             return

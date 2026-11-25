@@ -15,7 +15,11 @@
         "description": "Wykryto {count} urządzenie/urządzeń przez Bluetooth (także przez proxy ESPHome).",
         "data": {
           "address": "Urządzenie",
-          "name": "Nazwa"
+          "name": "Nazwa",
+          "password": "Hasło"
+        },
+        "data_description": {
+          "password": "Hasło ustawione w aplikacji MagicSwitchBot. Zostaw puste, jeśli urządzenie nie ma hasła."
         }
       },
       "manual": {
@@ -23,23 +27,49 @@
         "description": "Wpisz adres MAC urządzenia, np. AA:BB:CC:DD:EE:FF.",
         "data": {
           "address": "Adres MAC",
-          "name": "Nazwa"
+          "name": "Nazwa",
+          "password": "Hasło"
+        },
+        "data_description": {
+          "password": "Hasło ustawione w aplikacji MagicSwitchBot. Zostaw puste, jeśli urządzenie nie ma hasła."
         }
       },
       "bluetooth_confirm": {
         "title": "Wykryto Magic Switchbot",
         "description": "Czy dodać **{name}** ({address})?",
         "data": {
-          "name": "Nazwa"
+          "name": "Nazwa",
+          "password": "Hasło"
+        },
+        "data_description": {
+          "password": "Hasło ustawione w aplikacji MagicSwitchBot. Zostaw puste, jeśli urządzenie nie ma hasła."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Hasło Magic Switchbot",
+        "description": "**{name}** ({address}) odrzucił hasło. Wpisz hasło ustawione w aplikacji MagicSwitchBot albo zostaw pole puste, jeśli hasło zostało usunięte. Urządzenie musi być w zasięgu, żeby można było sprawdzić hasło.",
+        "data": {
+          "password": "Hasło"
+        }
+      },
+      "reconfigure": {
+        "title": "Zmiana hasła Magic Switchbot",
+        "description": "Wpisz hasło obecnie ustawione dla **{name}** ({address}) w aplikacji MagicSwitchBot albo zostaw pole puste, jeśli urządzenie nie ma hasła. Najpierw ustaw nowe hasło w aplikacji, a potem ją zamknij: urządzenie musi być w zasięgu i nie może być połączone z telefonem, żeby można było sprawdzić hasło.",
+        "data": {
+          "password": "Hasło"
         }
       }
     },
     "error": {
-      "invalid_mac": "Nieprawidłowy adres MAC (oczekiwany format AA:BB:CC:DD:EE:FF)."
+      "invalid_mac": "Nieprawidłowy adres MAC (oczekiwany format AA:BB:CC:DD:EE:FF).",
+      "invalid_auth": "Urządzenie odrzuciło hasło.",
+      "cannot_connect": "Nie udało się połączyć z urządzeniem. Sprawdź, czy jest w zasięgu adaptera Bluetooth albo proxy ESPHome z obsługą połączeń."
     },
     "abort": {
       "already_configured": "Ten Magic Switchbot jest już skonfigurowany.",
-      "no_devices_found": "Nie wykryto żadnego urządzenia Magic Switchbot."
+      "no_devices_found": "Nie wykryto żadnego urządzenia Magic Switchbot.",
+      "reauth_successful": "Hasło zostało zaakceptowane.",
+      "reconfigure_successful": "Hasło zostało zaakceptowane i zapisane."
     }
   },
   "options": {
@@ -56,8 +86,8 @@
           "command_timeout": "Limit czasu komendy"
         },
         "data_description": {
-          "retry_count": "Ile razy ponowić komendę, gdy urządzenie nie odpowie (0-10).",
-          "command_timeout": "Maksymalny czas oczekiwania na wykonanie komendy w sekundach (10-120)."
+          "retry_count": "Ile razy ponowić komendę przez nowe połączenie, gdy urządzenie nie odpowie (0-10). Naciśnięcie (PUSH) nie jest ponawiane po wysłaniu komendy.",
+          "command_timeout": "Łączny limit czasu komendy razem ze wszystkimi ponowieniami, w sekundach (30-120). Jedna próba połączenia może trwać do 20 sekund."
         }
       }
     }
@@ -77,6 +107,9 @@
     },
     "command_failed": {
       "message": "Urządzenie {address} nie potwierdziło komendy."
+    },
+    "invalid_auth": {
+      "message": "Urządzenie {address} odrzuciło hasło. Wpisz prawidłowe hasło w monicie ponownego uwierzytelnienia."
     },
     "device_not_found": {
       "message": "{address} jest nieosiągalny przez stos Bluetooth. Sprawdź, czy proxy ESPHome jest w zasięgu i czy urządzenie ma baterię."

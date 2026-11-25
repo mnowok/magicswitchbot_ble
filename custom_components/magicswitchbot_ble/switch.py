@@ -6,13 +6,18 @@ import logging
 
 from homeassistant.components.switch import SwitchDeviceClass, SwitchEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_ON
+from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.restore_state import RestoreEntity
+from homeassistant.helpers.restore_state import RestoredExtraData, RestoreEntity
 
-from .api import MagicSwitchbotError, MagicSwitchbotNotFound, MagicSwitchbotTimeout
+from .api import (
+    MagicSwitchbotAuthError,
+    MagicSwitchbotError,
+    MagicSwitchbotNotFound,
+    MagicSwitchbotTimeout,
+)
 from .const import DOMAIN
 from .entity import MagicSwitchbotEntity
 from .runtime import MagicSwitchbotRuntime
@@ -41,10 +46,27 @@ class MagicSwitchbotSwitch(MagicSwitchbotEntity, SwitchEntity, RestoreEntity):
         """Inicjalizacja."""
         super().__init__(runtime, "switch")
 
+    @property
+    def extra_restore_state_data(self) -> RestoredExtraData:
+        """Zapamiętuje ON/OFF niezależnie od dostępności.
+
+        Gdy bot jest poza zasięgiem, zapisany stan encji to "unavailable",
+        więc sam stan nie wystarczy do odtworzenia ON/OFF po restarcie.
+        """
+        return RestoredExtraData({"is_on": self._attr_is_on})
+
     async def async_added_to_hass(self) -> None:
         """Przywraca ostatni znany stan (urządzenie nie raportuje stanu)."""
         await super().async_added_to_hass()
-        if (last_state := await self.async_get_last_state()) is not None:
+
+        if (extra := await self.async_get_last_extra_data()) is not None and (
+            is_on := extra.as_dict().get("is_on")
+        ) is not None:
+            self._attr_is_on = bool(is_on)
+        elif (
+            last_state := await self.async_get_last_state()
+        ) is not None and last_state.state in (STATE_ON, STATE_OFF):
+            # Wpisy zapisane przez starsze wersje (bez danych dodatkowych).
             self._attr_is_on = last_state.state == STATE_ON
 
     async def async_turn_on(self, **kwargs: object) -> None:
@@ -63,6 +85,13 @@ class MagicSwitchbotSwitch(MagicSwitchbotEntity, SwitchEntity, RestoreEntity):
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
                 translation_key="device_not_found",
+                translation_placeholders={"address": self._runtime.address},
+            ) from err
+        except MagicSwitchbotAuthError as err:
+            self._runtime.async_handle_auth_failed()
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_auth",
                 translation_placeholders={"address": self._runtime.address},
             ) from err
         except MagicSwitchbotTimeout as err:

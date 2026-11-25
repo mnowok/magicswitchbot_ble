@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .api import MagicSwitchbotError, MagicSwitchbotNotFound
+from .api import MagicSwitchbotAuthError, MagicSwitchbotError, MagicSwitchbotNotFound
 from .const import DOMAIN
 from .entity import MagicSwitchbotEntity
 from .runtime import MagicSwitchbotRuntime
@@ -46,6 +46,13 @@ class MagicSwitchbotPushButton(MagicSwitchbotEntity, ButtonEntity):
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
                 translation_key="device_not_found",
+                translation_placeholders={"address": self._runtime.address},
+            ) from err
+        except MagicSwitchbotAuthError as err:
+            self._runtime.async_handle_auth_failed()
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="invalid_auth",
                 translation_placeholders={"address": self._runtime.address},
             ) from err
         except MagicSwitchbotError as err:

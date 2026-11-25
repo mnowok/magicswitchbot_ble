@@ -15,7 +15,11 @@
         "description": "{count} device(s) discovered via Bluetooth (including ESPHome proxies).",
         "data": {
           "address": "Device",
-          "name": "Name"
+          "name": "Name",
+          "password": "Password"
+        },
+        "data_description": {
+          "password": "The password set in the MagicSwitchBot app. Leave empty if the device has no password."
         }
       },
       "manual": {
@@ -23,23 +27,49 @@
         "description": "Type the Bluetooth MAC address of the device, e.g. AA:BB:CC:DD:EE:FF.",
         "data": {
           "address": "MAC address",
-          "name": "Name"
+          "name": "Name",
+          "password": "Password"
+        },
+        "data_description": {
+          "password": "The password set in the MagicSwitchBot app. Leave empty if the device has no password."
         }
       },
       "bluetooth_confirm": {
         "title": "Magic Switchbot discovered",
         "description": "Do you want to add **{name}** ({address})?",
         "data": {
-          "name": "Name"
+          "name": "Name",
+          "password": "Password"
+        },
+        "data_description": {
+          "password": "The password set in the MagicSwitchBot app. Leave empty if the device has no password."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Magic Switchbot password",
+        "description": "**{name}** ({address}) rejected the password. Enter the password set in the MagicSwitchBot app, or leave the field empty if you removed it. The device must be in range so that the password can be checked.",
+        "data": {
+          "password": "Password"
+        }
+      },
+      "reconfigure": {
+        "title": "Change the Magic Switchbot password",
+        "description": "Enter the password currently set for **{name}** ({address}) in the MagicSwitchBot app, or leave the field empty if the device has no password. Set the new password in the app first, then close the app, because the device must be in range and not connected to your phone so that the password can be checked.",
+        "data": {
+          "password": "Password"
         }
       }
     },
     "error": {
-      "invalid_mac": "Invalid MAC address (expected AA:BB:CC:DD:EE:FF)."
+      "invalid_mac": "Invalid MAC address (expected AA:BB:CC:DD:EE:FF).",
+      "invalid_auth": "The device rejected the password.",
+      "cannot_connect": "Could not connect to the device. Check that it is in range of a connectable Bluetooth adapter or ESPHome proxy."
     },
     "abort": {
       "already_configured": "This Magic Switchbot is already configured.",
-      "no_devices_found": "No Magic Switchbot devices were discovered."
+      "no_devices_found": "No Magic Switchbot devices were discovered.",
+      "reauth_successful": "The password was accepted.",
+      "reconfigure_successful": "The password was accepted and saved."
     }
   },
   "options": {
@@ -56,8 +86,8 @@
           "command_timeout": "Command timeout"
         },
         "data_description": {
-          "retry_count": "How many times a command is retried when the device does not answer (0-10).",
-          "command_timeout": "Maximum time to wait for the device to execute a command, in seconds (10-120)."
+          "retry_count": "How many times a command is retried over a new connection when the device does not answer (0-10). A push is not retried once the command was sent.",
+          "command_timeout": "Total time limit for a command, including all retries, in seconds (30-120). A single connection attempt can take up to 20 seconds."
         }
       }
     }
@@ -77,6 +107,9 @@
     },
     "command_failed": {
       "message": "The device {address} did not confirm the command."
+    },
+    "invalid_auth": {
+      "message": "The device {address} rejected the password. Enter the correct password in the reauthentication prompt."
     },
     "device_not_found": {
       "message": "{address} is not reachable through the Bluetooth stack. Check that an ESPHome Bluetooth proxy is in range and that the device is powered."
