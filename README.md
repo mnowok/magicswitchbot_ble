@@ -2,6 +2,7 @@
 
 [![GitHub release](https://img.shields.io/github/v/release/mnowok/magicswitchbot_ble?style=for-the-badge)](https://github.com/mnowok/magicswitchbot_ble/releases)
 [![HACS](https://img.shields.io/badge/HACS-Default-41BDF5?style=for-the-badge)](https://hacs.xyz)
+[![Active installs](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fanalytics.home-assistant.io%2Fcustom_integrations.json&query=%24.magicswitchbot_ble.total&label=active%20installs&style=for-the-badge&color=41BDF5&logo=homeassistant&logoColor=white)](https://analytics.home-assistant.io/custom_integrations.json)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2026.8%2B-41BDF5?style=for-the-badge&logo=homeassistant&logoColor=white)](https://www.home-assistant.io)
 [![hassfest](https://img.shields.io/github/actions/workflow/status/mnowok/magicswitchbot_ble/hassfest.yaml?branch=main&label=hassfest&style=for-the-badge)](https://github.com/mnowok/magicswitchbot_ble/actions/workflows/hassfest.yaml)
 [![HACS validation](https://img.shields.io/github/actions/workflow/status/mnowok/magicswitchbot_ble/validate.yaml?branch=main&label=HACS%20validation&style=for-the-badge)](https://github.com/mnowok/magicswitchbot_ble/actions/workflows/validate.yaml)
