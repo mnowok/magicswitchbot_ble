@@ -41,11 +41,27 @@ _PATCH_INSTALLED = False
 # push() do nich nie należy: jeśli komenda doszła, a zginęło tylko
 # potwierdzenie, ponowienie oznaczałoby drugie naciśnięcie.
 _IDEMPOTENT_METHODS: Final = frozenset(
-    {"turn_on", "turn_off", "get_battery", "get_basic_info"}
+    {
+        "turn_on",
+        "turn_off",
+        "get_battery",
+        "get_basic_info",
+        "change_pin",
+        "password_enabled",
+    }
 )
 
 # Przerwa między próbami - proxy ESPHome potrzebuje chwili na zwolnienie slotu.
 _RETRY_BACKOFF: Final = 1.0
+
+# Zmiana / usunięcie PIN-u. Format odczytany z oficjalnej aplikacji
+# (DevDataPackUtils.setPwd / clearPwd):
+#   05 04 07 01 <PIN: 6 bajtów ASCII> <token 4 B> <losowe>  - ustaw PIN
+#   05 04 07 00 00 00 00 00 00 00     <token 4 B> <losowe>  - usuń PIN
+# Odpowiedź zaczyna się od 05 05 01 (aplikacja sprawdza tylko ten początek).
+_CMD_MODIFY_PIN: Final = "0504"
+_RESP_MODIFY_PIN: Final = "0505"
+PIN_LENGTH: Final = 6
 
 
 class MagicSwitchbotError(Exception):
@@ -64,8 +80,42 @@ class MagicSwitchbotAuthError(MagicSwitchbotError):
     """Urządzenie odrzuciło hasło (PIN)."""
 
 
+class MagicSwitchbotPinNotChanged(MagicSwitchbotError):
+    """Po komendzie urządzenie nadal nie ma żądanego PIN-u."""
+
+
+class MagicSwitchbotPinUnverified(MagicSwitchbotError):
+    """Komenda zmiany PIN-u doszła, ale nie udało się sprawdzić wyniku."""
+
+
 class _RetryableError(MagicSwitchbotError):
     """Nieudana próba, którą można bezpiecznie powtórzyć na nowym tunelu."""
+
+
+class _MagicSwitchbotWithPin(MagicSwitchbot):
+    """Biblioteka uzupełniona o zmianę i usuwanie PIN-u."""
+
+    async def change_pin(self, pin: str | None) -> bool:
+        """Ustawia PIN (6 cyfr) albo go usuwa (None). Wymaga tokenu sesji."""
+        param = "01" + pin.encode().hex() if pin else "00" + "00" * PIN_LENGTH
+        return bool(await self._sendCommand(_CMD_MODIFY_PIN, param))
+
+    async def password_enabled(self) -> bool:
+        """Czy urządzenie ma PIN - według odpowiedzi na pobranie tokenu."""
+        # Po pobraniu tokenu biblioteka trzyma tu napis "True"/"False".
+        return str(self._en_pwd).lower() == "true"
+
+    async def _processResponse(self, response: str) -> bool:
+        # Biblioteka bierze odpowiedź 05 05 za nieudane przełączenie, bo
+        # komenda przełącznika też zaczyna się od 05.
+        if response[0:4] == _RESP_MODIFY_PIN:
+            _LOGGER.debug(
+                "MagicSwitchbot[%s]: potwierdzenie zmiany PIN-u: %s",
+                self._device.address,
+                response[0:8],
+            )
+            return True
+        return await super()._processResponse(response)
 
 
 def _describe(err: BaseException) -> str:
@@ -170,12 +220,67 @@ class MagicSwitchbotBLE:
         async with self._lock:
             await self._async_call_locked(None, password or None)
 
+    async def change_device_pin(self, new_pin: str | None) -> None:
+        """Ustawia PIN na urządzeniu (6 cyfr) albo go usuwa (None).
+
+        Komenda wymaga tokenu, więc najpierw logujemy się obecnym hasłem.
+        Wynik potwierdza dopiero ponowne zalogowanie nowym PIN-em na nowym
+        połączeniu - wraz z flagą "PIN włączony" z odpowiedzi urządzenia,
+        bo urządzenie bez PIN-u przyjmuje dowolne hasło.
+        """
+        async with self._lock:
+            send_error: MagicSwitchbotError | None = None
+            try:
+                await self._async_call_locked(
+                    "change_pin", self._password, (new_pin,)
+                )
+            except MagicSwitchbotNotFound:
+                raise
+            except MagicSwitchbotError as err:
+                # Także odrzucone obecne hasło: wcześniejsza próba mogła już
+                # zmienić PIN, a zginęło tylko potwierdzenie. Rozstrzyga
+                # sprawdzenie poniżej.
+                send_error = err
+
+            try:
+                enabled = await self._async_call_locked("password_enabled", new_pin)
+            except MagicSwitchbotAuthError as err:
+                if isinstance(send_error, MagicSwitchbotAuthError):
+                    raise send_error from err
+                raise MagicSwitchbotPinNotChanged(
+                    f"{self.address} nie przyjmuje nowego PIN-u"
+                    + (f" ({send_error})" if send_error else "")
+                ) from err
+            except MagicSwitchbotError as err:
+                if send_error is not None:
+                    raise send_error from err
+                raise MagicSwitchbotPinUnverified(
+                    f"nie udało się sprawdzić zmiany PIN-u: {err}"
+                ) from err
+
+            if enabled != (new_pin is not None):
+                raise MagicSwitchbotPinNotChanged(
+                    f"{self.address}: PIN {'włączony' if enabled else 'wyłączony'}"
+                    f" po komendzie"
+                    + (f" ({send_error})" if send_error else "")
+                )
+
+            if send_error is not None:
+                _LOGGER.debug(
+                    "MagicSwitchbot[%s]: PIN zmieniony mimo błędu komendy: %s",
+                    self.address,
+                    send_error,
+                )
+            self._password = new_pin
+
     # ---- Wnętrze --------------------------------------------------------
     async def _async_call(self, method: str) -> Any:
         async with self._lock:
             return await self._async_call_locked(method, self._password)
 
-    async def _async_execute(self, bot: MagicSwitchbot, method: str | None) -> Any:
+    async def _async_execute(
+        self, bot: MagicSwitchbot, method: str | None, args: tuple[Any, ...] = ()
+    ) -> Any:
         """Uwierzytelnia się (token sesji), a potem wykonuje metodę biblioteki."""
         # Biblioteka zwraca False, gdy urządzenie odrzuci hasło, a None przy
         # błędzie komunikacji. Po udanym _auth() metoda nie pobiera już tokenu
@@ -198,7 +303,7 @@ class MagicSwitchbotBLE:
             return True
 
         try:
-            return await getattr(bot, method)()
+            return await getattr(bot, method)(*args)
         except Exception as err:  # noqa: BLE001 - mapujemy na błąd integracji
             if method in _IDEMPOTENT_METHODS:
                 raise _RetryableError(
@@ -209,7 +314,9 @@ class MagicSwitchbotBLE:
                 "zostać wykonana, więc nie jest ponawiana"
             ) from err
 
-    async def _async_attempt(self, method: str | None, password: str | None) -> Any:
+    async def _async_attempt(
+        self, method: str | None, password: str | None, args: tuple[Any, ...] = ()
+    ) -> Any:
         """Jedna próba: nowy tunel, uwierzytelnienie, komenda, rozłączenie."""
         ble_device = async_ble_device_from_address(
             self.hass, self.address, connectable=True
@@ -239,7 +346,7 @@ class MagicSwitchbotBLE:
         key = self.address
         # retry_count=1: biblioteka robi jedną próbę, ponowienia są w
         # _async_call_locked (jej własne i tak nie działają na naszym tunelu).
-        bot = MagicSwitchbot(ble_device, password=password, retry_count=1)
+        bot = _MagicSwitchbotWithPin(ble_device, password=password, retry_count=1)
         _TUNNELS[key] = client
 
         try:
@@ -248,7 +355,7 @@ class MagicSwitchbotBLE:
                 self.address,
                 method,
             )
-            return await self._async_execute(bot, method)
+            return await self._async_execute(bot, method, args)
         finally:
             _TUNNELS.pop(key, None)
             _cancel_disconnect_timer(bot)
@@ -262,7 +369,10 @@ class MagicSwitchbotBLE:
                 )
 
     async def _async_call_locked(
-        self, method: str | None, password: str | None
+        self,
+        method: str | None,
+        password: str | None,
+        args: tuple[Any, ...] = (),
     ) -> Any:
         """Wykonuje operację z ponowieniami, w łącznym limicie czasu."""
         _install_tunnel_patch()
@@ -276,7 +386,7 @@ class MagicSwitchbotBLE:
             async with asyncio.timeout(self._command_timeout):
                 for attempt in range(1, attempts + 1):
                     try:
-                        return await self._async_attempt(method, password)
+                        return await self._async_attempt(method, password, args)
                     except _RetryableError as err:
                         last_error = err
                         _LOGGER.debug(

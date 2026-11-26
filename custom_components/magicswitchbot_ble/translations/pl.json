@@ -16,10 +16,10 @@
         "data": {
           "address": "Urządzenie",
           "name": "Nazwa",
-          "password": "Hasło"
+          "password": "PIN"
         },
         "data_description": {
-          "password": "Hasło ustawione w aplikacji MagicSwitchBot. Zostaw puste, jeśli urządzenie nie ma hasła."
+          "password": "PIN ustawiony w aplikacji MagicSwitchBot (aplikacja nazywa go hasłem). Zostaw puste, jeśli urządzenie nie ma PIN-u."
         }
       },
       "manual": {
@@ -28,10 +28,10 @@
         "data": {
           "address": "Adres MAC",
           "name": "Nazwa",
-          "password": "Hasło"
+          "password": "PIN"
         },
         "data_description": {
-          "password": "Hasło ustawione w aplikacji MagicSwitchBot. Zostaw puste, jeśli urządzenie nie ma hasła."
+          "password": "PIN ustawiony w aplikacji MagicSwitchBot (aplikacja nazywa go hasłem). Zostaw puste, jeśli urządzenie nie ma PIN-u."
         }
       },
       "bluetooth_confirm": {
@@ -39,37 +39,68 @@
         "description": "Czy dodać **{name}** ({address})?",
         "data": {
           "name": "Nazwa",
-          "password": "Hasło"
+          "password": "PIN"
         },
         "data_description": {
-          "password": "Hasło ustawione w aplikacji MagicSwitchBot. Zostaw puste, jeśli urządzenie nie ma hasła."
+          "password": "PIN ustawiony w aplikacji MagicSwitchBot (aplikacja nazywa go hasłem). Zostaw puste, jeśli urządzenie nie ma PIN-u."
         }
       },
       "reauth_confirm": {
-        "title": "Hasło Magic Switchbot",
-        "description": "**{name}** ({address}) odrzucił hasło. Wpisz hasło ustawione w aplikacji MagicSwitchBot albo zostaw pole puste, jeśli hasło zostało usunięte. Urządzenie musi być w zasięgu, żeby można było sprawdzić hasło.",
+        "title": "PIN Magic Switchbot",
+        "description": "**{name}** ({address}) odrzucił PIN. Wpisz PIN ustawiony w aplikacji MagicSwitchBot albo zostaw pole puste, jeśli PIN został usunięty. Urządzenie musi być w zasięgu, żeby można było sprawdzić PIN.",
         "data": {
-          "password": "Hasło"
+          "password": "PIN"
         }
       },
       "reconfigure": {
-        "title": "Zmiana hasła Magic Switchbot",
-        "description": "Wpisz hasło obecnie ustawione dla **{name}** ({address}) w aplikacji MagicSwitchBot albo zostaw pole puste, jeśli urządzenie nie ma hasła. Najpierw ustaw nowe hasło w aplikacji, a potem ją zamknij: urządzenie musi być w zasięgu i nie może być połączone z telefonem, żeby można było sprawdzić hasło.",
-        "data": {
-          "password": "Hasło"
+        "title": "PIN urządzenia",
+        "description": "Co chcesz zrobić? Zanim przejdziesz dalej, zamknij aplikację MagicSwitchBot na telefonie: urządzenie przyjmuje tylko jedno połączenie Bluetooth naraz i musi być w zasięgu.",
+        "menu_options": {
+          "reconfigure_password": "Wpisz PIN zmieniony w aplikacji (tylko zapis w HA)",
+          "change_pin": "Ustaw lub zmień PIN na urządzeniu",
+          "remove_pin": "Usuń PIN z urządzenia"
         }
+      },
+      "reconfigure_password": {
+        "title": "PIN zmieniony w aplikacji",
+        "description": "Wpisz PIN obecnie ustawiony dla **{name}** ({address}) w aplikacji MagicSwitchBot albo zostaw pole puste, jeśli urządzenie nie ma PIN-u. Home Assistant tylko go zapamięta, na urządzeniu nic się nie zmieni. PIN jest sprawdzany na urządzeniu przed zapisem.",
+        "data": {
+          "password": "PIN"
+        }
+      },
+      "change_pin": {
+        "title": "Ustawienie lub zmiana PIN-u",
+        "description": "Home Assistant ustawi nowy PIN na **{name}** ({address}), sprawdzi, czy urządzenie go przyjmuje, i dopiero wtedy go zapisze. Od teraz używaj nowego PIN-u także w aplikacji MagicSwitchBot.",
+        "data": {
+          "new_pin": "Nowy PIN",
+          "new_pin_confirm": "Powtórz nowy PIN"
+        },
+        "data_description": {
+          "new_pin": "Dokładnie 6 cyfr, jak w aplikacji MagicSwitchBot."
+        }
+      },
+      "remove_pin": {
+        "title": "Usunięcie PIN-u",
+        "description": "Home Assistant usunie PIN z **{name}** ({address}) i sprawdzi, czy urządzenie już go nie wymaga. Potem każdy w zasięgu Bluetooth będzie mógł sterować urządzeniem przez aplikację MagicSwitchBot."
       }
     },
     "error": {
       "invalid_mac": "Nieprawidłowy adres MAC (oczekiwany format AA:BB:CC:DD:EE:FF).",
-      "invalid_auth": "Urządzenie odrzuciło hasło.",
-      "cannot_connect": "Nie udało się połączyć z urządzeniem. Sprawdź, czy jest w zasięgu adaptera Bluetooth albo proxy ESPHome z obsługą połączeń."
+      "invalid_auth": "Urządzenie odrzuciło PIN.",
+      "cannot_connect": "Nie udało się połączyć z urządzeniem. Sprawdź, czy jest w zasięgu adaptera Bluetooth albo proxy ESPHome z obsługą połączeń.",
+      "invalid_pin_format": "PIN musi mieć dokładnie 6 cyfr.",
+      "pin_mismatch": "PIN-y się różnią.",
+      "current_pin_rejected": "Urządzenie odrzuciło PIN zapisany w Home Assistant, więc PIN nie został zmieniony. Najpierw wpisz bieżący PIN (Wpisz PIN zmieniony w aplikacji).",
+      "pin_not_changed": "Urządzenie nie przyjęło zmiany. PIN na urządzeniu się nie zmienił.",
+      "pin_unverified": "Komenda została wysłana, ale nie udało się sprawdzić wyniku. Sprawdź w aplikacji MagicSwitchBot, czy PIN się zmienił. Jeśli Home Assistant zgłosi później odrzucony PIN, wpisz bieżący."
     },
     "abort": {
       "already_configured": "Ten Magic Switchbot jest już skonfigurowany.",
       "no_devices_found": "Nie wykryto żadnego urządzenia Magic Switchbot.",
-      "reauth_successful": "Hasło zostało zaakceptowane.",
-      "reconfigure_successful": "Hasło zostało zaakceptowane i zapisane."
+      "reauth_successful": "PIN został zaakceptowany.",
+      "reconfigure_successful": "PIN został zaakceptowany i zapisany.",
+      "pin_changed": "Nowy PIN jest ustawiony na urządzeniu i zapisany w Home Assistant.",
+      "pin_removed": "PIN został usunięty z urządzenia."
     }
   },
   "options": {
@@ -109,7 +140,7 @@
       "message": "Urządzenie {address} nie potwierdziło komendy."
     },
     "invalid_auth": {
-      "message": "Urządzenie {address} odrzuciło hasło. Wpisz prawidłowe hasło w monicie ponownego uwierzytelnienia."
+      "message": "Urządzenie {address} odrzuciło PIN. Wpisz prawidłowy PIN w monicie ponownego uwierzytelnienia."
     },
     "device_not_found": {
       "message": "{address} jest nieosiągalny przez stos Bluetooth. Sprawdź, czy proxy ESPHome jest w zasięgu i czy urządzenie ma baterię."

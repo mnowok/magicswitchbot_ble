@@ -55,22 +55,33 @@ If your device does not appear—for example, because it is asleep and not
 advertising—choose the manual MAC address option in the setup flow. Enter the
 address in this format: `AA:BB:CC:DD:EE:FF`.
 
-### Password
+### PIN
 
-If you set a password in the official MagicSwitchBot app, enter it in the
-**Password** field during setup. Leave the field empty if the device has no
-password.
+The device can be protected with a 6-digit PIN. The official MagicSwitchBot app
+calls it a password.
 
-To change the password, set the new password in the app and close the app. Then
-go to **Settings → Devices & services → MagicSwitchbot (Bluetooth Proxy)**, select
-**⋮ → Reconfigure** next to the device entry, and enter the new password. Leave the
-field empty if you removed the password.
+If the device has a PIN, enter it in the **PIN** field during setup. Leave the
+field empty if the device has no PIN.
 
-If the device rejects the password, for example because you changed or removed
-it in the app without reconfiguring, Home Assistant asks you to reauthenticate.
-Enter the new password, or leave the field empty if you removed it.
+To manage the PIN later, go to **Settings → Devices & services → MagicSwitchbot
+(Bluetooth Proxy)** and select **⋮ → Reconfigure** next to the device entry:
 
-In both cases the device must be in range so that the password can be checked.
+| Option | On the device | In Home Assistant |
+|---|---|---|
+| **Enter the PIN changed in the app** | Nothing changes | Saves the PIN you already set in the app |
+| **Set or change the PIN on the device** | Sets the new PIN | Saves the new PIN |
+| **Remove the PIN from the device** | Removes the PIN | Saves "no PIN" |
+
+Home Assistant checks the PIN on the device before it saves it. After you change
+or remove the PIN from Home Assistant, use the new PIN, or no PIN, in the app as
+well.
+
+If the device rejects the PIN, for example because you changed or removed it in
+the app, Home Assistant asks you to reauthenticate. Enter the current PIN, or
+leave the field empty if you removed it.
+
+In all cases, close the MagicSwitchBot app first. The device must be in range
+and not connected to your phone.
 
 ### Availability
 
@@ -96,12 +107,12 @@ The switch keeps its last known ON/OFF state.
 - **The battery level does not update:** The value comes from BLE advertisements, so it updates when the device advertises again.
 - **Commands do not reach the device:** Check that the Bluetooth proxy is connectable and within range.
 - **Commands fail with a connection error while the official app is open:** The device accepts only one Bluetooth connection at a time. While the MagicSwitchBot app on your phone is connected to it, Home Assistant cannot connect. Close the app completely (force stop it), or turn off Bluetooth on the phone, and try again.
-- **Commands fail and the device was working in the official app:** The device may have a password set. Enter it when Home Assistant asks you to reauthenticate.
+- **Commands fail and the device was working in the official app:** The device may have a PIN set. Enter it when Home Assistant asks you to reauthenticate.
 - **Entities are unavailable:** Home Assistant has not received a BLE advertisement from the device recently. Check the battery and the distance to the Bluetooth proxy.
 
 When reporting a problem, attach the diagnostics file: go to **Settings → Devices &
 services → MagicSwitchbot (Bluetooth Proxy)**, then select **⋮ → Download diagnostics**
-next to the device entry. The password is removed from the file.
+next to the device entry. The PIN is removed from the file.
 
 To enable debug logging:
 

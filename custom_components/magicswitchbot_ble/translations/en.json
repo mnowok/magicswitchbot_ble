@@ -16,10 +16,10 @@
         "data": {
           "address": "Device",
           "name": "Name",
-          "password": "Password"
+          "password": "PIN"
         },
         "data_description": {
-          "password": "The password set in the MagicSwitchBot app. Leave empty if the device has no password."
+          "password": "The PIN set in the MagicSwitchBot app (the app calls it a password). Leave empty if the device has no PIN."
         }
       },
       "manual": {
@@ -28,10 +28,10 @@
         "data": {
           "address": "MAC address",
           "name": "Name",
-          "password": "Password"
+          "password": "PIN"
         },
         "data_description": {
-          "password": "The password set in the MagicSwitchBot app. Leave empty if the device has no password."
+          "password": "The PIN set in the MagicSwitchBot app (the app calls it a password). Leave empty if the device has no PIN."
         }
       },
       "bluetooth_confirm": {
@@ -39,37 +39,68 @@
         "description": "Do you want to add **{name}** ({address})?",
         "data": {
           "name": "Name",
-          "password": "Password"
+          "password": "PIN"
         },
         "data_description": {
-          "password": "The password set in the MagicSwitchBot app. Leave empty if the device has no password."
+          "password": "The PIN set in the MagicSwitchBot app (the app calls it a password). Leave empty if the device has no PIN."
         }
       },
       "reauth_confirm": {
-        "title": "Magic Switchbot password",
-        "description": "**{name}** ({address}) rejected the password. Enter the password set in the MagicSwitchBot app, or leave the field empty if you removed it. The device must be in range so that the password can be checked.",
+        "title": "Magic Switchbot PIN",
+        "description": "**{name}** ({address}) rejected the PIN. Enter the PIN set in the MagicSwitchBot app, or leave the field empty if you removed it. The device must be in range so that the PIN can be checked.",
         "data": {
-          "password": "Password"
+          "password": "PIN"
         }
       },
       "reconfigure": {
-        "title": "Change the Magic Switchbot password",
-        "description": "Enter the password currently set for **{name}** ({address}) in the MagicSwitchBot app, or leave the field empty if the device has no password. Set the new password in the app first, then close the app, because the device must be in range and not connected to your phone so that the password can be checked.",
-        "data": {
-          "password": "Password"
+        "title": "Device PIN",
+        "description": "What do you want to do? Before you continue, close the MagicSwitchBot app on your phone: the device accepts only one Bluetooth connection at a time and must be in range.",
+        "menu_options": {
+          "reconfigure_password": "Enter the PIN changed in the app (saved in Home Assistant only)",
+          "change_pin": "Set or change the PIN on the device",
+          "remove_pin": "Remove the PIN from the device"
         }
+      },
+      "reconfigure_password": {
+        "title": "PIN changed in the app",
+        "description": "Enter the PIN currently set for **{name}** ({address}) in the MagicSwitchBot app, or leave the field empty if the device has no PIN. Home Assistant only saves it; nothing changes on the device. The PIN is checked on the device before it is saved.",
+        "data": {
+          "password": "PIN"
+        }
+      },
+      "change_pin": {
+        "title": "Set or change the PIN",
+        "description": "Home Assistant sets the new PIN on **{name}** ({address}), checks that the device accepts it and then saves it. Use the new PIN in the MagicSwitchBot app from now on.",
+        "data": {
+          "new_pin": "New PIN",
+          "new_pin_confirm": "Repeat the new PIN"
+        },
+        "data_description": {
+          "new_pin": "Exactly 6 digits, as in the MagicSwitchBot app."
+        }
+      },
+      "remove_pin": {
+        "title": "Remove the PIN",
+        "description": "Home Assistant removes the PIN from **{name}** ({address}) and checks that the device no longer requires it. Anyone within Bluetooth range will then be able to control the device with the MagicSwitchBot app."
       }
     },
     "error": {
       "invalid_mac": "Invalid MAC address (expected AA:BB:CC:DD:EE:FF).",
-      "invalid_auth": "The device rejected the password.",
-      "cannot_connect": "Could not connect to the device. Check that it is in range of a connectable Bluetooth adapter or ESPHome proxy."
+      "invalid_auth": "The device rejected the PIN.",
+      "cannot_connect": "Could not connect to the device. Check that it is in range of a connectable Bluetooth adapter or ESPHome proxy.",
+      "invalid_pin_format": "The PIN must have exactly 6 digits.",
+      "pin_mismatch": "The PINs do not match.",
+      "current_pin_rejected": "The device rejected the PIN saved in Home Assistant, so the PIN was not changed. First enter the current PIN (Enter the PIN changed in the app).",
+      "pin_not_changed": "The device did not accept the change. The PIN on the device is unchanged.",
+      "pin_unverified": "The command was sent, but the result could not be checked. Check in the MagicSwitchBot app whether the PIN changed. If Home Assistant later reports a rejected PIN, enter the current one."
     },
     "abort": {
       "already_configured": "This Magic Switchbot is already configured.",
       "no_devices_found": "No Magic Switchbot devices were discovered.",
-      "reauth_successful": "The password was accepted.",
-      "reconfigure_successful": "The password was accepted and saved."
+      "reauth_successful": "The PIN was accepted.",
+      "reconfigure_successful": "The PIN was accepted and saved.",
+      "pin_changed": "The new PIN is set on the device and saved in Home Assistant.",
+      "pin_removed": "The PIN was removed from the device."
     }
   },
   "options": {
@@ -109,7 +140,7 @@
       "message": "The device {address} did not confirm the command."
     },
     "invalid_auth": {
-      "message": "The device {address} rejected the password. Enter the correct password in the reauthentication prompt."
+      "message": "The device {address} rejected the PIN. Enter the correct PIN in the reauthentication prompt."
     },
     "device_not_found": {
       "message": "{address} is not reachable through the Bluetooth stack. Check that an ESPHome Bluetooth proxy is in range and that the device is powered."

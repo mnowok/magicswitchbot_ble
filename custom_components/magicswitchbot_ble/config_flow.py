@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Mapping
 from typing import Any
 
@@ -26,7 +27,14 @@ from homeassistant.helpers.selector import (
     TextSelectorType,
 )
 
-from .api import MagicSwitchbotAuthError, MagicSwitchbotBLE, MagicSwitchbotError
+from .api import (
+    PIN_LENGTH,
+    MagicSwitchbotAuthError,
+    MagicSwitchbotBLE,
+    MagicSwitchbotError,
+    MagicSwitchbotPinNotChanged,
+    MagicSwitchbotPinUnverified,
+)
 from .const import (
     CONF_COMMAND_TIMEOUT,
     CONF_ENABLE_BATTERY,
@@ -50,6 +58,12 @@ DEFAULT_NAME = "Magic Switchbot"
 
 # Hasło (PIN) ustawione w aplikacji MagicSwitchBot; puste = brak hasła.
 PASSWORD_SELECTOR = TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
+
+# Nowy PIN ustawiany z HA: dokładnie 6 cyfr, jak w aplikacji (stała długość
+# parametru komendy - krótszy PIN przesunąłby token w ramce).
+CONF_NEW_PIN = "new_pin"
+CONF_NEW_PIN_CONFIRM = "new_pin_confirm"
+PIN_PATTERN = re.compile(rf"\d{{{PIN_LENGTH}}}")
 
 
 class MagicSwitchbotConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -243,18 +257,119 @@ class MagicSwitchbotConfigFlow(ConfigFlow, domain=DOMAIN):
             self._get_reauth_entry(), "reauth_confirm", user_input
         )
 
-    # ---- Ponowna konfiguracja (zmiana hasła w dowolnej chwili) ----------
+    # ---- Ponowna konfiguracja: hasło w HA oraz PIN na urządzeniu --------
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Zmiana hasła (PIN) bez czekania, aż urządzenie odrzuci stare."""
+        """Menu: zapis hasła w HA, zmiana albo usunięcie PIN-u na urządzeniu."""
         entry = self._get_reconfigure_entry()
-        if user_input is None:
-            self.context["title_placeholders"] = {
-                "name": entry.title,
-                "address": str(entry.data[CONF_ADDRESS]).upper(),
-            }
-        return await self._async_password_step(entry, "reconfigure", user_input)
+        placeholders = self._entry_placeholders(entry)
+        self.context["title_placeholders"] = placeholders
+        return self.async_show_menu(
+            step_id="reconfigure",
+            menu_options=["reconfigure_password", "change_pin", "remove_pin"],
+            description_placeholders=placeholders,
+        )
+
+    async def async_step_reconfigure_password(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Zapis hasła zmienionego w aplikacji, bez czekania na odrzucenie."""
+        return await self._async_password_step(
+            self._get_reconfigure_entry(), "reconfigure_password", user_input
+        )
+
+    async def async_step_change_pin(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Ustawienie albo zmiana PIN-u na samym urządzeniu."""
+        entry = self._get_reconfigure_entry()
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            new_pin = user_input.get(CONF_NEW_PIN) or ""
+            if not PIN_PATTERN.fullmatch(new_pin):
+                errors[CONF_NEW_PIN] = "invalid_pin_format"
+            elif new_pin != user_input.get(CONF_NEW_PIN_CONFIRM):
+                errors[CONF_NEW_PIN_CONFIRM] = "pin_mismatch"
+            elif error := await self._async_change_device_pin(entry, new_pin):
+                errors["base"] = error
+            else:
+                return self.async_update_and_abort(
+                    entry, data_updates={CONF_PASSWORD: new_pin}, reason="pin_changed"
+                )
+
+        return self.async_show_form(
+            step_id="change_pin",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_NEW_PIN): PASSWORD_SELECTOR,
+                    vol.Required(CONF_NEW_PIN_CONFIRM): PASSWORD_SELECTOR,
+                }
+            ),
+            description_placeholders=self._entry_placeholders(entry),
+            errors=errors,
+        )
+
+    async def async_step_remove_pin(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Usunięcie PIN-u z urządzenia (po potwierdzeniu)."""
+        entry = self._get_reconfigure_entry()
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            if error := await self._async_change_device_pin(entry, None):
+                errors["base"] = error
+            else:
+                return self.async_update_and_abort(
+                    entry, data_updates={CONF_PASSWORD: ""}, reason="pin_removed"
+                )
+
+        return self.async_show_form(
+            step_id="remove_pin",
+            data_schema=vol.Schema({}),
+            description_placeholders=self._entry_placeholders(entry),
+            errors=errors,
+        )
+
+    async def _async_change_device_pin(
+        self, entry: ConfigEntry, new_pin: str | None
+    ) -> str | None:
+        """Zmienia PIN na urządzeniu; zwraca klucz błędu albo None."""
+        api = self._api_for_entry(entry)
+        try:
+            await api.change_device_pin(new_pin)
+        except MagicSwitchbotAuthError:
+            return "current_pin_rejected"
+        except MagicSwitchbotPinNotChanged as err:
+            _LOGGER.debug("Zmiana PIN-u nieudana: %s", err)
+            return "pin_not_changed"
+        except MagicSwitchbotPinUnverified as err:
+            _LOGGER.warning("Nie udało się potwierdzić zmiany PIN-u: %s", err)
+            return "pin_unverified"
+        except MagicSwitchbotError as err:
+            _LOGGER.debug("Zmiana PIN-u nieudana: %s", err)
+            return "cannot_connect"
+        return None
+
+    def _api_for_entry(self, entry: ConfigEntry) -> MagicSwitchbotBLE:
+        """Klient BLE wpisu: działający (wspólna blokada) albo tymczasowy."""
+        # Działający wpis ma własnego klienta z blokadą - używamy go, by
+        # operacja nie zderzyła się z komendą wysyłaną w tym samym czasie.
+        runtime = getattr(entry, "runtime_data", None)
+        if runtime is not None:
+            return runtime.api
+        return MagicSwitchbotBLE(
+            self.hass,
+            str(entry.data[CONF_ADDRESS]).upper(),
+            password=entry.data.get(CONF_PASSWORD) or None,
+        )
+
+    @staticmethod
+    def _entry_placeholders(entry: ConfigEntry) -> dict[str, str]:
+        """Nazwa i adres do tytułu i opisów formularzy."""
+        return {"name": entry.title, "address": str(entry.data[CONF_ADDRESS]).upper()}
 
     async def _async_password_step(
         self,
@@ -268,13 +383,7 @@ class MagicSwitchbotConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             password = user_input.get(CONF_PASSWORD) or ""
-
-            # Działający wpis ma własnego klienta z blokadą - używamy go, by
-            # sprawdzenie nie zderzyło się z komendą wysyłaną w tym samym czasie.
-            runtime = getattr(entry, "runtime_data", None)
-            api = runtime.api if runtime is not None else MagicSwitchbotBLE(
-                self.hass, address
-            )
+            api = self._api_for_entry(entry)
 
             try:
                 await api.check_auth(password or None)
